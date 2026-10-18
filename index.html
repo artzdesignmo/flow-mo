@@ -59,11 +59,20 @@ const canvas=document.getElementById('c');
 const gl=canvas.getContext('webgl',{preserveDrawingBuffer:false,alpha:false});
 if(!gl){document.body.innerHTML='<p style="color:#fff;padding:40px">WebGL not supported</p>';return;}
 
-// half float support
+// half float support (iOS Safari: check framebuffer completeness)
 const ext={half:gl.getExtension('OES_texture_half_float'),lin:gl.getExtension('OES_texture_half_float_linear')};
-gl.getExtension('OES_texture_float');
-const HALF=!!ext.half;
-const TEXF=HALF?gl.HALF_FLOAT_OES:gl.UNSIGNED_BYTE;
+let TEXF=gl.UNSIGNED_BYTE;
+if(ext.half){
+  // test if half-float framebuffer is actually renderable
+  const tt=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tt);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,4,4,0,gl.RGBA,gl.HALF_FLOAT_OES,null);
+  const fb=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tt,0);
+  if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE)TEXF=gl.HALF_FLOAT_OES;
+  gl.deleteFramebuffer(fb);gl.deleteTexture(tt);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+}
+const HALF=TEXF!==gl.UNSIGNED_BYTE;
 
 function compile(t,src){const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);
   if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(s));return s;}
@@ -90,7 +99,7 @@ function use(p){curProg=p;gl.useProgram(p);}
 function uni(p,name){return gl.getUniformLocation(p,name);}
 
 // shaders
-const advection=prog(`precision highp float;varying vec2 vUv;uniform sampler2D uV,uS;uniform vec2 uTexel;uniform float uDt,uDiss;
+const advection=prog(`precision mediump float;varying vec2 vUv;uniform sampler2D uV,uS;uniform vec2 uTexel;uniform float uDt,uDiss;
 vec2 bilerp(sampler2D t,vec2 uv,vec2 ts){vec2 st=uv/ts-0.5;vec2 i=floor(st),f=fract(st);
 vec2 a=texture2D(t,(i+vec2(.5,.5))*ts).xy,b=texture2D(t,(i+vec2(1.5,.5))*ts).xy,
 c=texture2D(t,(i+vec2(.5,1.5))*ts).xy,d=texture2D(t,(i+vec2(1.5,1.5))*ts).xy;
@@ -108,7 +117,7 @@ const curlP=prog(`precision mediump float;varying vec2 vUv;uniform sampler2D uV;
 void main(){float L=texture2D(uV,vUv-vec2(uTexel.x,0.)).y,R=texture2D(uV,vUv+vec2(uTexel.x,0.)).y,
 B=texture2D(uV,vUv-vec2(0.,uTexel.y)).x,T=texture2D(uV,vUv+vec2(0.,uTexel.y)).x;
 gl_FragColor=vec4(0.5*(R-L-T+B),0.,0.,1.);}`);
-const vorticity=prog(`precision highp float;varying vec2 vUv;uniform sampler2D uV,uC;uniform vec2 uTexel;uniform float uCurl,uDt;
+const vorticity=prog(`precision mediump float;varying vec2 vUv;uniform sampler2D uV,uC;uniform vec2 uTexel;uniform float uCurl,uDt;
 void main(){float L=texture2D(uC,vUv-vec2(uTexel.x,0.)).x,R=texture2D(uC,vUv+vec2(uTexel.x,0.)).x,
 B=texture2D(uC,vUv-vec2(0.,uTexel.y)).x,T=texture2D(uC,vUv+vec2(0.,uTexel.y)).x,C=texture2D(uC,vUv).x;
 vec2 f=vec2(abs(T)-abs(B),abs(R)-abs(L));f/=length(f)+0.0001;f*=uCurl*C;f.y*=-1.;
@@ -122,10 +131,10 @@ const gradSub=prog(`precision mediump float;varying vec2 vUv;uniform sampler2D u
 void main(){float L=texture2D(uP,vUv-vec2(uTexel.x,0.)).x,R=texture2D(uP,vUv+vec2(uTexel.x,0.)).x,
 B=texture2D(uP,vUv-vec2(0.,uTexel.y)).x,T=texture2D(uP,vUv+vec2(0.,uTexel.y)).x;
 vec2 v=texture2D(uV,vUv).xy;v-=vec2(R-L,T-B);gl_FragColor=vec4(v,0.,1.);}`);
-const splatP=prog(`precision highp float;varying vec2 vUv;uniform sampler2D uT;uniform float uAsp;uniform vec3 uVal;uniform vec2 uPt;uniform float uR;
+const splatP=prog(`precision mediump float;varying vec2 vUv;uniform sampler2D uT;uniform float uAsp;uniform vec3 uVal;uniform vec2 uPt;uniform float uR;
 void main(){vec2 p=vUv-uPt;p.x*=uAsp;vec3 b=texture2D(uT,vUv).xyz;
 gl_FragColor=vec4(b+exp(-dot(p,p)/uR)*uVal,1.);}`);
-const displayP=prog(`precision highp float;varying vec2 vUv;uniform sampler2D uT;
+const displayP=prog(`precision mediump float;varying vec2 vUv;uniform sampler2D uT;
 void main(){vec3 c=texture2D(uT,vUv).rgb;vec3 lc=pow(c,vec3(0.4545));
 gl_FragColor=vec4(lc,1.);}`);
 
