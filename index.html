@@ -256,7 +256,7 @@ PALS.forEach((p,i)=>{
   d.onclick=()=>{CFG.pal=i;palRow.querySelectorAll('.swatch').forEach(s=>s.classList.remove('on'));d.classList.add('on');};
   palRow.append(d);
 });
-function pickColor(){const p=PALS[CFG.pal].c;CFG.hue=(CFG.hue+1)%p.c.length;return p.c[CFG.hue];}
+function pickColor(){const p=PALS[CFG.pal].c;CFG.hue=(CFG.hue+1)%p.length;return p[CFG.hue];}
 
 // pointer
 const ptrs=new Map();
