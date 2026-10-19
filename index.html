@@ -34,6 +34,7 @@ input[type=range]{width:100%;accent-color:#fff}
 </style>
 </head>
 <body>
+<div id="dbg" style="position:fixed;top:50px;left:10px;z-index:99;color:#0f0;font:11px monospace;white-space:pre;pointer-events:none;text-shadow:0 1px 2px #000"></div>
 <canvas id="c"></canvas>
 <div id="topbar"><div class="brand">Flow Mo</div>
 <div class="hbtns"><button class="ibtn" id="langBtn">文</button><button class="ibtn" id="demoBtn" title="auto demo">▶</button></div></div>
@@ -64,13 +65,18 @@ const ext={lin:gl.getExtension('OES_texture_half_float_linear')};
 const TEXF=gl.UNSIGNED_BYTE;
 const HALF=false;
 
+const DBGL=[];
 function compile(t,src){const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);
-  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(s));return s;}
+  const ok=gl.getShaderParameter(s,gl.COMPILE_STATUS);
+  DBGL.push((t===gl.VERTEX_SHADER?'VS':'FS')+':'+(ok?'OK':'FAIL '+gl.getShaderInfoLog(s)));
+  return s;}
 const VSRC=`attribute vec2 aPos;varying vec2 vUv;void main(){vUv=aPos*0.5+0.5;gl_Position=vec4(aPos,0.,1.);}`;
 const vs=compile(gl.VERTEX_SHADER,VSRC);
 function prog(fsrc){
   const p=gl.createProgram();gl.attachShader(p,vs);gl.attachShader(p,compile(gl.FRAGMENT_SHADER,fsrc));
-  gl.linkProgram(p);return p;}
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS))DBGL.push('LINK FAIL: '+gl.getProgramInfoLog(p));
+  return p;}
 const quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);
 gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,-1,1,1,1,1,-1]),gl.STATIC_DRAW);
 
@@ -156,6 +162,14 @@ function resize(){
   div=fb(simW,simH,TEXF,gl.NEAREST);curl=fb(simW,simH,TEXF,gl.NEAREST);pres=fb(simW,simH,TEXF,gl.NEAREST);
 }
 addEventListener('resize',resize);resize();
+[vel.read,vel.write,dye.read,dye.write,div,curl,pres].forEach((f,i)=>{
+  gl.bindFramebuffer(gl.FRAMEBUFFER,f.fbo);
+  const st=gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  DBGL.push('FBO'+i+':'+(st===gl.FRAMEBUFFER_COMPLETE?'OK':'FAIL '+st));
+});
+gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+DBGL.push('dye size '+dye.w+'x'+dye.h+' vel '+vel.w+'x'+vel.h);
+document.getElementById('dbg').textContent=DBGL.join('\n');
 
 function splat(x,y,dx,dy,color){
   const C=CFG;
