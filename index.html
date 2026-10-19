@@ -59,22 +59,10 @@ const canvas=document.getElementById('c');
 const gl=canvas.getContext('webgl',{preserveDrawingBuffer:false,alpha:false});
 if(!gl){document.body.innerHTML='<p style="color:#fff;padding:40px">WebGL not supported</p>';return;}
 
-// texture float support — iOS Safari: force byte textures (half-float render path is unreliable on iOS)
-const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent||'');
-const ext={half:gl.getExtension('OES_texture_half_float'),lin:gl.getExtension('OES_texture_half_float_linear')};
-let TEXF=gl.UNSIGNED_BYTE;
-if(!isIOS&&ext.half){
-  const tt=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tt);
-  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
-  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,4,4,0,gl.RGBA,gl.HALF_FLOAT_OES,null);
-  const fb=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tt,0);
-  if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE)TEXF=gl.HALF_FLOAT_OES;
-  gl.deleteFramebuffer(fb);gl.deleteTexture(tt);
-  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-}
-const HALF=TEXF!==gl.UNSIGNED_BYTE;
+// byte textures only — half-float render path caused black screens (v1.1/v1.2), visual diff is negligible
+const ext={lin:gl.getExtension('OES_texture_half_float_linear')};
+const TEXF=gl.UNSIGNED_BYTE;
+const HALF=false;
 
 function compile(t,src){const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);
   if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(s));return s;}
@@ -163,7 +151,7 @@ function resize(){
   W=Math.floor(innerWidth*dpr);H=Math.floor(innerHeight*dpr);
   canvas.width=W;canvas.height=H;
   const simW=Math.floor(W/2),simH=Math.floor(H/2);
-  const flt=ext.lin?gl.LINEAR:gl.NEAREST;
+  const flt=gl.LINEAR;
   vel=dbl(simW,simH,TEXF,flt);dye=dbl(W,H,TEXF,flt);
   div=fb(simW,simH,TEXF,gl.NEAREST);curl=fb(simW,simH,TEXF,gl.NEAREST);pres=fb(simW,simH,TEXF,gl.NEAREST);
 }
