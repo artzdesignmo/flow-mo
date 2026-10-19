@@ -54,6 +54,10 @@ input[type=range]{width:100%;accent-color:#fff}
 <div class="row"><button class="chip" id="pngBtn">PNG ↓</button><button class="chip" id="clearBtn" data-en="Clear" data-zh="清畫布">Clear</button></div>
 </div>
 <script>
+window.addEventListener('error',e=>{
+  const d=document.getElementById('dbg');
+  if(d)d.textContent+='\nJS ERROR: '+(e.message||e.error);
+});
 (()=>{
 "use strict";
 const canvas=document.getElementById('c');
