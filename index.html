@@ -59,12 +59,14 @@ const canvas=document.getElementById('c');
 const gl=canvas.getContext('webgl',{preserveDrawingBuffer:false,alpha:false});
 if(!gl){document.body.innerHTML='<p style="color:#fff;padding:40px">WebGL not supported</p>';return;}
 
-// half float support (iOS Safari: check framebuffer completeness)
+// texture float support — iOS Safari: force byte textures (half-float render path is unreliable on iOS)
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent||'');
 const ext={half:gl.getExtension('OES_texture_half_float'),lin:gl.getExtension('OES_texture_half_float_linear')};
 let TEXF=gl.UNSIGNED_BYTE;
-if(ext.half){
-  // test if half-float framebuffer is actually renderable
+if(!isIOS&&ext.half){
   const tt=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tt);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,4,4,0,gl.RGBA,gl.HALF_FLOAT_OES,null);
   const fb=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
   gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tt,0);
